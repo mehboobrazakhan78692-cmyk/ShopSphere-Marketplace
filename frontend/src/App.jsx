@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
 import { WishlistProvider } from './context/WishlistContext';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Layout Components
 const Header = lazy(() => import('./components/Header'));
@@ -76,7 +77,8 @@ const Spinner = () => (
 
 function App() {
   return (
-    <BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
       <AuthProvider>
         <WishlistProvider>
           <CartProvider>
@@ -148,7 +150,8 @@ function App() {
         </WishlistProvider>
       </AuthProvider>
     </BrowserRouter>
-  );
+  </ErrorBoundary>
+);
 }
 
 export default App;

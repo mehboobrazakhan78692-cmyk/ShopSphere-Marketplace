@@ -7,6 +7,7 @@ import ProductCard from '../components/ProductCard';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import toast from 'react-hot-toast';
+import { getOptimizedImage } from '../utils/imageUtils';
 
 const MOCK_PRODUCTS = [
   { _id: '1', name: 'Sony WH-1000XM5 Wireless Noise Cancelling Headphones', description: 'Industry-leading noise cancellation. Exceptionally natural and accurate sound quality. Crystal-clear hands-free calling with 4 beamforming microphones. Up to 30 hours battery life. Multipoint connection for 2 devices. Ultracomfortable with lighter design.', price: 24990, originalPrice: 34990, category: 'electronics', brand: 'Sony', rating: 4.8, numReviews: 12450, stock: 8, thumbnail: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&h=600&fit=crop', images: ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&h=600&fit=crop', 'https://images.unsplash.com/photo-1583394838336-acd977736f90?w=600&h=600&fit=crop'], specifications: { 'Driver Size': '30mm', 'Frequency Response': '4Hz - 40,000Hz', 'Battery Life': '30 hours', 'Weight': '250g', 'Connectivity': 'Bluetooth 5.2', 'Noise Cancellation': 'Yes — Adaptive' }, reviews: [{ _id: 'r1', name: 'Rahul S.', rating: 5, comment: 'Best headphones I have ever used. The noise cancellation is outstanding!', createdAt: '2024-03-15' }, { _id: 'r2', name: 'Priya M.', rating: 4, comment: 'Great sound quality and comfortable fit. Battery lasts all day.', createdAt: '2024-02-20' }] },
@@ -99,7 +100,7 @@ export default function ProductDetail() {
               )}
               {images[selectedImage] ? (
                 <img 
-                  src={images[selectedImage]} 
+                  src={getOptimizedImage(images[selectedImage], 800)} 
                   alt={product.name} 
                   loading="lazy"
                   style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain', transition: 'opacity 0.3s' }} 
@@ -122,7 +123,7 @@ export default function ProductDetail() {
                     }}
                   >
                     <img 
-                      src={img} 
+                      src={getOptimizedImage(img, 100)} 
                       alt="" 
                       loading="lazy"
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }} 

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import StarRating from './StarRating';
+import { getOptimizedImage } from '../utils/imageUtils';
 
 export default function ProductCard({ product }) {
   const navigate = useNavigate();
@@ -65,7 +66,7 @@ export default function ProductCard({ product }) {
       >
         {product.thumbnail || (product.images && product.images[0]) ? (
           <img
-            src={product.thumbnail || product.images[0]}
+            src={getOptimizedImage(product.thumbnail || product.images[0], 400)}
             alt={product.name}
             loading="lazy"
             style={{

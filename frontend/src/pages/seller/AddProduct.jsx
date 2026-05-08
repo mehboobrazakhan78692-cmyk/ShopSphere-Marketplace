@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { FiArrowLeft, FiSave, FiImage, FiPackage, FiTag, FiDollarSign, FiHash } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { getOptimizedImage } from '../../utils/imageUtils';
 
 const AddProduct = () => {
   const { id } = useParams();
@@ -21,6 +22,7 @@ const AddProduct = () => {
   });
 
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (isEdit) {
@@ -45,6 +47,31 @@ const AddProduct = () => {
       fetchProduct();
     }
   }, [id, isEdit]);
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      return toast.error('File too large (max 5MB)');
+    }
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    setUploading(true);
+    try {
+      const { data } = await axios.post('/api/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setForm({ ...form, thumbnail: data.url });
+      toast.success('Image uploaded to Cloudinary');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -194,9 +221,40 @@ const AddProduct = () => {
                 style={{ width: '100%', padding: '12px 12px 12px 40px', border: '1px solid #e2e8f0', borderRadius: '10px', outline: 'none' }}
               />
             </div>
+            
+            <div style={{ marginTop: '12px' }}>
+              <label 
+                className="btn-secondary" 
+                style={{ 
+                  display: 'inline-flex', 
+                  alignItems: 'center', 
+                  gap: '8px', 
+                  cursor: uploading ? 'not-allowed' : 'pointer',
+                  opacity: uploading ? 0.7 : 1,
+                  padding: '8px 16px',
+                  fontSize: '13px',
+                  background: '#f1f5f9',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  fontWeight: 600
+                }}
+              >
+                <input 
+                  type="file" 
+                  hidden 
+                  accept="image/*" 
+                  onChange={handleFileUpload} 
+                  disabled={uploading}
+                />
+                {uploading ? 'Uploading...' : <><FiImage /> Upload from Device</>}
+              </label>
+              <p style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
+                Or paste a URL above. Recommended: 800x800px.
+              </p>
+            </div>
             {form.thumbnail && (
               <div style={{ marginTop: '12px', width: '120px', height: '120px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
-                <img src={form.thumbnail} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <img src={getOptimizedImage(form.thumbnail, 200)} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
             )}
           </div>

@@ -3,6 +3,33 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const colors = require('colors');
+
+// ─── Environment Validation ───────────────────────────────────────────────────
+const checkEnv = () => {
+  const required = [
+    'MONGO_URI',
+    'JWT_SECRET',
+    'JWT_REFRESH_SECRET',
+    'NODE_ENV',
+    'CLOUDINARY_CLOUD_NAME',
+    'CLOUDINARY_API_KEY',
+    'CLOUDINARY_API_SECRET'
+  ];
+
+  const missing = required.filter(key => !process.env[key]);
+
+  if (missing.length > 0) {
+    console.error('❌ CRITICAL: Missing required environment variables:'.red.bold);
+    missing.forEach(key => console.error(`   - ${key}`.red));
+    if (process.env.NODE_ENV === 'production') {
+      console.error('Exiting due to missing configuration in production mode.'.red.bold);
+      process.exit(1);
+    }
+  }
+};
+
+checkEnv();
+
 const { connectMongoDB, connectPostgres } = require('./config/db');
 const errorHandler = require('./middleware/errorMiddleware');
 
@@ -15,6 +42,7 @@ const vendorRoutes = require('./routes/vendorRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const reportRoutes = require('./routes/reportRoutes');
+const uploadRoutes = require('./routes/uploadRoutes');
 
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -26,8 +54,20 @@ const csrfProtection = require('./middleware/csrfMiddleware');
 const app = express();
 
 // ─── CORS first (so preflight OPTIONS doesn't hit rate limiter) ─────────────
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+  : ['http://localhost:5173', 'http://127.0.0.1:5173'];
+
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
 
@@ -37,7 +77,16 @@ app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
 // ─── Security Middleware ──────────────────────────────────────────────────────
 app.use(helmet({
-  contentSecurityPolicy: false, // Allow inline scripts in dev
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // unsafe-inline needed for some dev tools and UI libs
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+      imgSrc: ["'self'", 'data:', 'https://images.unsplash.com', 'https://via.placeholder.com'],
+      connectSrc: ["'self'"],
+    },
+  },
   crossOriginEmbedderPolicy: false,
 }));
 app.use(mongoSanitize());
@@ -94,6 +143,7 @@ app.use('/api/vendor', vendorRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────────
 app.use((req, res, next) => {
