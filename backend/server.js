@@ -56,28 +56,43 @@ const app = express();
 // Trust proxy for Render/Vercel (needed for rate limit and helmet)
 app.set('trust proxy', 1);
 
-// ─── CORS first (so preflight OPTIONS doesn't hit rate limiter) ─────────────
-const allowedOrigins = process.env.ALLOWED_ORIGINS 
-  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-  : [
-      'http://localhost:5173', 
-      'http://127.0.0.1:5173',
-      'https://shopsphere-marketplace.vercel.app',
-      'https://shopsphere-v1.vercel.app',
-      'https://shopsphere-backend.onrender.com'
-    ];
+// ─── CORS configuration ──────────────────────────────────────────────────────
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'https://shopsphere-marketplace.vercel.app',
+  'https://shopsphere-v1.vercel.app'
+];
+
+if (process.env.ALLOWED_ORIGINS) {
+  process.env.ALLOWED_ORIGINS.split(',').forEach(origin => {
+    const trimmed = origin.trim();
+    if (trimmed && !allowedOrigins.includes(trimmed)) {
+      allowedOrigins.push(trimmed);
+    }
+  });
+}
 
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+    
+    // Check if origin is allowed or matches a .vercel.app or .onrender.com subdomain
+    const isAllowed = allowedOrigins.includes(origin) || 
+                     origin.endsWith('.vercel.app') || 
+                     origin.endsWith('.onrender.com');
+                     
+    if (isAllowed) {
       callback(null, true);
     } else {
+      console.warn(`Blocked by CORS: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-ShopSphere-CSRF', 'X-Requested-With'],
 }));
 
 // ─── Body parsers ─────────────────────────────────────────────────────────────
@@ -92,8 +107,8 @@ app.use(helmet({
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-      imgSrc: ["'self'", 'data:', 'https://images.unsplash.com', 'https://via.placeholder.com', 'https://res.cloudinary.com'],
-      connectSrc: ["'self'", 'https://shopsphere-backend.onrender.com'],
+      imgSrc: ["'self'", 'data:', 'blob:', 'https://images.unsplash.com', 'https://via.placeholder.com', 'https://res.cloudinary.com'],
+      connectSrc: ["'self'", 'https://*.onrender.com', 'https://*.vercel.app'],
     },
   },
   crossOriginEmbedderPolicy: false,
