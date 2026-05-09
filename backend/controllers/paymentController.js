@@ -45,12 +45,52 @@ const createCheckoutSession = asyncHandler(async (req, res) => {
     payment_method_types: ['card'],
     line_items: lineItems,
     mode: 'payment',
-    success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/order-success?id=${order._id}`,
+    success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/order-success?id=${order._id}&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/checkout?orderId=${order._id}`,
     metadata: { orderId: order._id.toString() },
   });
 
   res.json({ success: true, url: session.url });
+});
+
+// @desc    Confirm Payment (Post-redirect)
+// @route   POST /api/payments/confirm-payment
+// @access  Private
+const confirmPayment = asyncHandler(async (req, res) => {
+  const { orderId, sessionId } = req.body;
+  const order = await Order.findById(orderId);
+
+  if (!order) {
+    res.status(404);
+    throw new Error('Order not found');
+  }
+
+  // If sessionId is provided, verify it with Stripe (in test mode)
+  if (sessionId && order.paymentMethod === 'Stripe') {
+    try {
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      if (session.payment_status === 'paid') {
+        order.isPaid = true;
+        order.paidAt = Date.now();
+        order.paymentStatus = 'paid';
+        order.paymentResult = {
+          id: session.payment_intent,
+          status: session.payment_status,
+          email_address: session.customer_details.email,
+        };
+        await order.save();
+      }
+    } catch (err) {
+      console.error('Stripe Session Verification Failed:', err.message);
+      // Even if verification fails in test mode, we might want to check the order status
+    }
+  } else if (order.paymentMethod === 'COD') {
+    // COD is already handled but we ensure it's pending
+    order.paymentStatus = 'pending';
+    await order.save();
+  }
+
+  res.json({ success: true, data: order });
 });
 
 // @desc    Process Cash on Delivery
@@ -150,4 +190,4 @@ const refundOrder = asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'Order refunded successfully', data: order });
 });
 
-module.exports = { createCheckoutSession, processCOD, refundOrder };
+module.exports = { createCheckoutSession, confirmPayment, processCOD, refundOrder };

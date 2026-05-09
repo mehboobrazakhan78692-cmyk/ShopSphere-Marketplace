@@ -17,22 +17,23 @@ export const CartProvider = ({ children }) => {
   }, [cartItems]);
 
   const addToCart = (product, qty = 1) => {
-    setCartItems((prev) => {
-      const existing = prev.find((i) => i._id === product._id);
-      if (existing) {
-        toast.success('Quantity updated!');
-        return prev.map((i) =>
+    const existing = cartItems.find((i) => i._id === product._id);
+    if (existing) {
+      toast.success('Quantity updated!');
+      setCartItems((prev) =>
+        prev.map((i) =>
           i._id === product._id ? { ...i, qty: i.qty + qty } : i
-        );
-      }
+        )
+      );
+    } else {
       toast.success(`${product.name} added to cart!`);
-      return [...prev, { ...product, qty }];
-    });
+      setCartItems((prev) => [...prev, { ...product, qty }]);
+    }
   };
 
   const removeFromCart = (id) => {
-    setCartItems((prev) => prev.filter((i) => i._id !== id));
     toast.error('Item removed from cart');
+    setCartItems((prev) => prev.filter((i) => i._id !== id));
   };
 
   const updateQty = (id, qty) => {

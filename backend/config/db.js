@@ -4,19 +4,32 @@ const colors = require('colors');
 
 // ─── MongoDB Connection ───────────────────────────────────────────────────────
 const connectMongoDB = async () => {
-  if (process.env.NODE_ENV === 'production' && !process.env.MONGO_URI) {
-    console.error('❌ CRITICAL: MONGO_URI is not defined in production!'.red.bold);
-    process.exit(1);
-  }
+  const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/ShopSphere';
+  const isProduction = process.env.NODE_ENV === 'production';
 
   try {
-    const conn = await mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/ShopSphere', {
-      maxPoolSize: process.env.NODE_ENV === 'production' ? 10 : 5,
+    const conn = await mongoose.connect(mongoUri, {
+      maxPoolSize: isProduction ? 10 : 5,
+      serverSelectionTimeoutMS: 5000, // Fail fast if Atlas is unreachable
     });
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`.cyan.bold);
   } catch (error) {
-    console.error(`❌ MongoDB Error: ${error.message}`.red.bold);
-    if (process.env.NODE_ENV === 'production') process.exit(1);
+    console.error(`❌ MongoDB Primary Connection Error: ${error.message}`.red.bold);
+    
+    // If Atlas fails and we have a local fallback URI, or if we are not in strict production
+    if (!isProduction || process.env.ALLOW_LOCAL_FALLBACK === 'true') {
+      console.log('⚠️ Attempting Local MongoDB fallback...'.yellow);
+      try {
+        const localUri = process.env.MONGO_URI_LOCAL || 'mongodb://127.0.0.1:27017/ShopSphere';
+        const conn = await mongoose.connect(localUri);
+        console.log(`✅ Fallback MongoDB Connected: ${conn.connection.host}`.yellow.bold);
+      } catch (fallbackError) {
+        console.error(`❌ Fallback MongoDB Error: ${fallbackError.message}`.red.bold);
+        if (isProduction) process.exit(1);
+      }
+    } else {
+      process.exit(1);
+    }
   }
 };
 

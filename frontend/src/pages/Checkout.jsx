@@ -13,10 +13,10 @@ export default function Checkout() {
   const [order, setOrder] = useState(null);
 
   useEffect(() => {
-    if (cartCount === 0) {
+    if (cartCount === 0 && !loading) {
       navigate('/cart');
     }
-  }, [cartCount, navigate]);
+  }, [cartCount, navigate, loading]);
 
   const handlePlaceOrder = async () => {
     setLoading(true);
@@ -52,11 +52,18 @@ export default function Checkout() {
 
       // 2. Handle Payment
       if (paymentMethod === 'Stripe') {
-        const { data: payData } = await axios.post('/api/payments/create-session', { orderId: createdOrder._id }, {
-          headers: { 'X-ShopSphere-CSRF': 'shopsphere_v1' }
-        });
-        if (payData.url) {
-          window.location.href = payData.url; // Redirect to Stripe
+        try {
+          const { data: payData } = await axios.post('/api/payments/create-session', { orderId: createdOrder._id }, {
+            headers: { 'X-ShopSphere-CSRF': 'shopsphere_v1' }
+          });
+          if (payData.url) {
+            window.location.href = payData.url; // Redirect to Stripe
+          }
+        } catch (payErr) {
+          console.error('Stripe Error:', payErr);
+          toast.error('Payment gateway error. Using placeholder keys? Please configure actual Stripe keys in .env');
+          // For test mode, we might want to redirect to success anyway or allow retry
+          navigate(`/orders`); // Redirect to orders so they can try again later
         }
       } else {
         // COD

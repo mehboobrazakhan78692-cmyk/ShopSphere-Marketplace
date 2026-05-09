@@ -116,6 +116,91 @@ const sendOrderConfirmationEmail = async (order, user) => {
 };
 
 /**
+ * Send welcome email on registration
+ * @param {Object} user - User object
+ */
+const sendWelcomeEmail = async (user) => {
+  const html = `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; padding: 40px; border-radius: 16px; background-color: #ffffff;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #0f172a; margin: 0; font-size: 28px; font-weight: 800;">Welcome to ShopSphere!</h1>
+      </div>
+      
+      <p style="color: #475569; font-size: 16px; line-height: 1.6;">Hi ${user.name},</p>
+      <p style="color: #475569; font-size: 16px; line-height: 1.6;">We're thrilled to have you join our multi-vendor marketplace. At ShopSphere, we connect you with the best sellers from around the country.</p>
+      
+      <div style="background: #f8fafc; padding: 25px; border-radius: 12px; margin: 30px 0; border: 1px solid #f1f5f9;">
+        <h3 style="margin-top: 0; color: #1e293b; font-size: 18px;">Getting Started</h3>
+        <ul style="color: #64748b; padding-left: 20px; line-height: 1.8;">
+          <li>Browse millions of products across categories</li>
+          <li>Enjoy secure payments and fast delivery</li>
+          <li>Track your orders in real-time</li>
+          <li>Manage your wishlist and reviews</li>
+        </ul>
+      </div>
+
+      <div style="text-align: center; margin: 40px 0;">
+        <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}" 
+           style="background: #0284c7; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 16px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+          Start Shopping Now
+        </a>
+      </div>
+
+      <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 30px 0;">
+      <p style="text-align: center; color: #94a3b8; font-size: 13px;">
+        This is an automated message, please do not reply.<br>
+        &copy; ${new Date().getFullYear()} ShopSphere Inc. 123 E-Commerce Way.
+      </p>
+    </div>
+  `;
+
+  await sendEmail({
+    email: user.email,
+    subject: 'Welcome to ShopSphere!',
+    html,
+  });
+};
+
+/**
+ * Send password reset email
+ * @param {Object} user - User object
+ * @param {String} resetUrl - URL with reset token
+ */
+const sendPasswordResetEmail = async (user, resetUrl) => {
+  const html = `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; padding: 40px; border-radius: 16px; background-color: #ffffff;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #0f172a; margin: 0; font-size: 24px; font-weight: 800;">Password Reset Request</h1>
+      </div>
+      
+      <p style="color: #475569; font-size: 16px; line-height: 1.6;">Hi ${user.name},</p>
+      <p style="color: #475569; font-size: 16px; line-height: 1.6;">You are receiving this email because a password reset request was made for your account.</p>
+      
+      <div style="text-align: center; margin: 40px 0;">
+        <a href="${resetUrl}" 
+           style="background: #ef4444; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 16px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+          Reset Password
+        </a>
+      </div>
+
+      <p style="color: #64748b; font-size: 14px; line-height: 1.6;">If you did not request this, please ignore this email and your password will remain unchanged.</p>
+      <p style="color: #94a3b8; font-size: 12px; margin-top: 20px;">The link will expire in 10 minutes.</p>
+
+      <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 30px 0;">
+      <p style="text-align: center; color: #94a3b8; font-size: 13px;">
+        &copy; ${new Date().getFullYear()} ShopSphere. All rights reserved.
+      </p>
+    </div>
+  `;
+
+  await sendEmail({
+    email: user.email,
+    subject: 'Password Reset Request',
+    html,
+  });
+};
+
+/**
  * Send order status update email
  * @param {Object} order - Order object
  * @param {Object} user - User object
@@ -171,5 +256,7 @@ const sendOrderStatusUpdateEmail = async (order, user) => {
 module.exports = {
   sendEmail,
   sendOrderConfirmationEmail,
-  sendOrderStatusUpdateEmail
+  sendOrderStatusUpdateEmail,
+  sendWelcomeEmail,
+  sendPasswordResetEmail
 };

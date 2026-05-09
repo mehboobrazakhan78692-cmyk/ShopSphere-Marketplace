@@ -5,13 +5,16 @@
 export const getOptimizedImage = (url, width = '') => {
   if (!url) return '';
   
-  if (url.includes('res.cloudinary.com')) {
-    const parts = url.split('/upload/');
+  // Force HTTPS for all URLs
+  const secureUrl = url.replace('http://', 'https://');
+  
+  if (secureUrl.includes('res.cloudinary.com')) {
+    const parts = secureUrl.split('/upload/');
     if (parts.length === 2) {
       const transform = `f_auto,q_auto${width ? `,w_${width}` : ''}`;
       return `${parts[0]}/upload/${transform}/${parts[1]}`;
     }
   }
   
-  return url;
+  return secureUrl;
 };

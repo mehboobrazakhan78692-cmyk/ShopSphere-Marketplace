@@ -9,15 +9,39 @@ export default function OrderSuccess() {
   const location = useLocation();
   const [order, setOrder] = useState(null);
   const orderId = new URLSearchParams(location.search).get('id');
+  const sessionId = new URLSearchParams(location.search).get('session_id');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     clearCart();
     if (orderId) {
-      axios.get(`/api/orders/${orderId}`)
-        .then(({ data }) => setOrder(data.data))
-        .catch(err => console.error('Error fetching order', err));
+      // 1. Confirm payment if it's a Stripe redirect
+      const confirmAndFetch = async () => {
+        try {
+          if (sessionId) {
+            await axios.post('/api/payments/confirm-payment', { orderId, sessionId });
+          }
+          const { data } = await axios.get(`/api/orders/${orderId}`);
+          setOrder(data.data);
+        } catch (err) {
+          console.error('Error confirming/fetching order', err);
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      confirmAndFetch();
+    } else {
+      setLoading(false);
     }
-  }, [orderId, clearCart]);
+  }, [orderId, sessionId, clearCart]);
+
+  if (loading) return (
+    <div className="container" style={{ padding: '80px 16px', textAlign: 'center', minHeight: '60vh' }}>
+      <div className="loader" style={{ margin: '0 auto' }} />
+      <p style={{ marginTop: '20px', color: '#666' }}>Confirming your order...</p>
+    </div>
+  );
 
   return (
     <div className="container" style={{ padding: '80px 16px', textAlign: 'center', minHeight: '60vh' }}>

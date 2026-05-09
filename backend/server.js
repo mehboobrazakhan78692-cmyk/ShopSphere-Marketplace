@@ -53,10 +53,19 @@ const csrfProtection = require('./middleware/csrfMiddleware');
 
 const app = express();
 
+// Trust proxy for Render/Vercel (needed for rate limit and helmet)
+app.set('trust proxy', 1);
+
 // ─── CORS first (so preflight OPTIONS doesn't hit rate limiter) ─────────────
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-  : ['http://localhost:5173', 'http://127.0.0.1:5173'];
+  : [
+      'http://localhost:5173', 
+      'http://127.0.0.1:5173',
+      'https://shopsphere-marketplace.vercel.app',
+      'https://shopsphere-v1.vercel.app',
+      'https://shopsphere-backend.onrender.com'
+    ];
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -80,11 +89,11 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // unsafe-inline needed for some dev tools and UI libs
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-      imgSrc: ["'self'", 'data:', 'https://images.unsplash.com', 'https://via.placeholder.com'],
-      connectSrc: ["'self'"],
+      imgSrc: ["'self'", 'data:', 'https://images.unsplash.com', 'https://via.placeholder.com', 'https://res.cloudinary.com'],
+      connectSrc: ["'self'", 'https://shopsphere-backend.onrender.com'],
     },
   },
   crossOriginEmbedderPolicy: false,

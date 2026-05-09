@@ -3,6 +3,8 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const { sendTokenResponse, generateAccessToken } = require('../utils/tokenUtils');
 const { logAnalytics } = require('../utils/postgresLogger');
+const { sendWelcomeEmail, sendPasswordResetEmail } = require('../utils/emailUtils');
+const crypto = require('crypto');
 
 // @desc    Register user
 // @route   POST /api/auth/register
@@ -20,6 +22,10 @@ const register = asyncHandler(async (req, res) => {
   }
   const user = await User.create({ name, email, password, phone, role });
   await logAnalytics('user_registration', 1, { userId: user._id, role: user.role });
+  
+  // Send Welcome Email (Don't await to avoid delaying response)
+  sendWelcomeEmail(user).catch(err => console.error('Welcome email failed:', err));
+
   sendTokenResponse(user, 201, res);
 });
 
@@ -142,4 +148,77 @@ const updateProfile = asyncHandler(async (req, res) => {
   res.json({ success: true, data: updated });
 });
 
-module.exports = { register, login, logout, refresh, getMe, getUsers, deleteUser, updateUserRole, updateProfile };
+// @desc    Forgot password
+// @route   POST /api/auth/forgotpassword
+// @access  Public
+const forgotPassword = asyncHandler(async (req, res) => {
+  const user = await User.findOne({ email: req.body.email });
+
+  if (!user) {
+    res.status(404);
+    throw new Error('There is no user with that email');
+  }
+
+  // Get reset token
+  const resetToken = user.getResetPasswordToken();
+
+  await user.save({ validateBeforeSave: false });
+
+  // Create reset URL
+  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password/${resetToken}`;
+
+  try {
+    await sendPasswordResetEmail(user, resetUrl);
+    res.status(200).json({ success: true, message: 'Email sent' });
+  } catch (err) {
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    res.status(500);
+    throw new Error('Email could not be sent');
+  }
+});
+
+// @desc    Reset password
+// @route   PUT /api/auth/resetpassword/:resettoken
+// @access  Public
+const resetPassword = asyncHandler(async (req, res) => {
+  // Get hashed token
+  const resetPasswordToken = crypto
+    .createHash('sha256')
+    .update(req.params.resettoken)
+    .digest('hex');
+
+  const user = await User.findOne({
+    resetPasswordToken,
+    resetPasswordExpire: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    res.status(400);
+    throw new Error('Invalid token');
+  }
+
+  // Set new password
+  user.password = req.body.password;
+  user.resetPasswordToken = undefined;
+  user.resetPasswordExpire = undefined;
+  await user.save();
+
+  sendTokenResponse(user, 200, res);
+});
+
+module.exports = { 
+  register, 
+  login, 
+  logout, 
+  refresh, 
+  getMe, 
+  getUsers, 
+  deleteUser, 
+  updateUserRole, 
+  updateProfile,
+  forgotPassword,
+  resetPassword
+};

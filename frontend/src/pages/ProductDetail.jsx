@@ -89,8 +89,8 @@ export default function ProductDetail() {
         <span className="line-clamp-2" style={{ color: '#333' }}>{product.name}</span>
       </nav>
 
-      <div className="section-card animate-fadeIn" style={{ padding: '28px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
+      <div className="section-card animate-fadeIn detail-container" style={{ padding: '28px' }}>
+        <div className="detail-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
 
           {/* ── Left: Images ────────────────────────────────────── */}
           <div>
@@ -327,6 +327,14 @@ export default function ProductDetail() {
           </div>
         </section>
       )}
+      <style>{`
+        @media (max-width: 768px) {
+          .detail-container { padding: 16px !important; }
+          .detail-grid { grid-template-columns: 1fr !important; gap: 24px !important; }
+          .detail-grid > div:first-child { height: auto !important; }
+          .detail-grid img { max-height: 300px !important; }
+        }
+      `}</style>
     </main>
   );
 }

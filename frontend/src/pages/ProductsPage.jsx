@@ -87,7 +87,7 @@ export default function ProductsPage() {
   };
 
   return (
-    <main style={{ maxWidth: '1400px', margin: '24px auto', padding: '0 16px', display: 'grid', gridTemplateColumns: '260px 1fr', gap: '24px' }}>
+    <main className="products-container" style={{ maxWidth: '1400px', margin: '24px auto', padding: '0 16px', display: 'grid', gridTemplateColumns: '260px 1fr', gap: '24px' }}>
       
       {/* ── Sidebar Filters ────────────────────────────────────────── */}
       <aside>
@@ -256,6 +256,19 @@ export default function ProductsPage() {
           accent-color: var(--brand-orange);
           width: 16px;
           height: 16px;
+        }
+        @media (max-width: 1024px) {
+          .products-container {
+            grid-template-columns: 1fr !important;
+          }
+          aside {
+            position: relative !important;
+            width: 100% !important;
+          }
+          aside .section-card {
+            position: relative !important;
+            top: 0 !important;
+          }
         }
       `}</style>
     </main>

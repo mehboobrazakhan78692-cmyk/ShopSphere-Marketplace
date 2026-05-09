@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
 /* ── Design Tokens ──────────────────────────────────────────────────────── */
 :root {
   --brand-orange: #f90;
@@ -27,7 +29,6 @@ body {
 }
 
 /* ── Google Font Import ──────────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 /* ── Container ───────────────────────────────────────────────────────────── */
 .container {
@@ -283,4 +284,23 @@ body {
 }
 @media (min-width: 769px) {
   .hide-desktop { display: none !important; }
+}
+
+/* ── Product Card Actions ────────────────────────────────────────────────── */
+.product-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+@media (max-width: 640px) {
+  .product-card-actions {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .product-card-actions button {
+    width: 100%;
+    padding: 10px 12px !important;
+    font-size: 12px !important;
+  }
 }
