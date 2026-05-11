@@ -255,8 +255,11 @@ export default function Header() {
               {link.label}
             </Link>
           ))}
-          <Link to="/seller" style={{ color: 'var(--brand-orange)', textDecoration: 'none', fontSize: '13px', padding: '8px 12px', fontWeight: 600, marginLeft: 'auto' }}>
-            Sell on ShopSphere
+          <Link 
+            to={user?.role === 'vendor' ? '/seller' : (user ? '/profile' : '/login')} 
+            style={{ color: 'var(--brand-orange)', textDecoration: 'none', fontSize: '13px', padding: '8px 12px', fontWeight: 600, marginLeft: 'auto' }}
+          >
+            {user?.role === 'vendor' ? 'Seller Panel' : 'Sell on ShopSphere'}
           </Link>
         </nav>
       </header>

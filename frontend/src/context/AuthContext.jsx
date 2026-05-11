@@ -117,8 +117,23 @@ export const AuthProvider = ({ children }) => {
     delete axios.defaults.headers.common['Authorization'];
   };
 
+  const becomeVendor = async () => {
+    setLoading(true);
+    try {
+      const { data } = await axios.put('/api/auth/become-vendor');
+      const userData = { ...user, role: 'vendor' };
+      setUser(userData);
+      localStorage.setItem('shopsphere_user', JSON.stringify(userData));
+      return { success: true };
+    } catch (err) {
+      return { success: false, message: err.response?.data?.message || 'Failed to become vendor' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, becomeVendor }}>
       {children}
     </AuthContext.Provider>
   );

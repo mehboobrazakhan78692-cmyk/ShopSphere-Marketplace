@@ -209,6 +209,21 @@ const resetPassword = asyncHandler(async (req, res) => {
   sendTokenResponse(user, 200, res);
 });
 
+// @desc    Become a vendor
+// @route   PUT /api/auth/become-vendor
+// @access  Private
+const becomeVendor = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+  if (!user) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+  user.role = 'vendor';
+  await user.save();
+  await logAnalytics('become_vendor', 1, { userId: user._id });
+  res.json({ success: true, data: user, message: 'Congratulations! You are now a seller.' });
+});
+
 module.exports = { 
   register, 
   login, 
@@ -220,5 +235,6 @@ module.exports = {
   updateUserRole, 
   updateProfile,
   forgotPassword,
-  resetPassword
+  resetPassword,
+  becomeVendor
 };

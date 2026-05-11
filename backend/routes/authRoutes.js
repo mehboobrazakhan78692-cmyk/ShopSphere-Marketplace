@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { register, login, logout, refresh, getMe, getUsers, deleteUser, updateUserRole, updateProfile, forgotPassword, resetPassword } = require('../controllers/authController');
+const { register, login, logout, refresh, getMe, getUsers, deleteUser, updateUserRole, updateProfile, forgotPassword, resetPassword, becomeVendor } = require('../controllers/authController');
 const { protect, admin } = require('../middleware/authMiddleware');
 
 const { registerValidationRules, loginValidationRules, validate } = require('../middleware/validateMiddleware');
@@ -15,6 +15,7 @@ router.get('/me', protect, getMe);
 router.put('/profile', protect, updateProfile);
 router.post('/forgotpassword', forgotPassword);
 router.put('/resetpassword/:resettoken', resetPassword);
+router.put('/become-vendor', protect, becomeVendor);
 
 // Address Routes
 router.route('/addresses').post(protect, addAddress);

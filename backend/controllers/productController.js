@@ -63,12 +63,14 @@ const getProducts = asyncHandler(async (req, res) => {
     currentSort = { score: { $meta: 'textScore' } };
   }
 
-  const total = await Product.countDocuments(query);
-  const products = await Product.find(query, projection)
-    .sort(currentSort)
-    .skip(skip)
-    .limit(Number(limit))
-    .lean();
+  const [total, products] = await Promise.all([
+    Product.countDocuments(query),
+    Product.find(query, projection)
+      .sort(currentSort)
+      .skip(skip)
+      .limit(Number(limit))
+      .lean()
+  ]);
 
   const responseData = {
     success: true,

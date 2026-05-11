@@ -7,23 +7,38 @@ const colors = require('colors');
 // ─── Environment Validation ───────────────────────────────────────────────────
 const checkEnv = () => {
   const required = [
+    'NODE_ENV',
     'MONGO_URI',
     'JWT_SECRET',
     'JWT_REFRESH_SECRET',
-    'NODE_ENV',
     'CLOUDINARY_CLOUD_NAME',
     'CLOUDINARY_API_KEY',
     'CLOUDINARY_API_SECRET'
   ];
 
+  // Additional required variables for production
+  if (process.env.NODE_ENV === 'production') {
+    required.push(
+      'PG_HOST',
+      'PG_USER',
+      'PG_PASSWORD',
+      'PG_DB',
+      'STRIPE_SECRET_KEY',
+      'FRONTEND_URL'
+    );
+  }
+
   const missing = required.filter(key => !process.env[key]);
 
   if (missing.length > 0) {
-    console.error('❌ CRITICAL: Missing required environment variables:'.red.bold);
+    console.error('\n❌ CRITICAL: Missing required environment variables:'.red.bold);
     missing.forEach(key => console.error(`   - ${key}`.red));
+    
     if (process.env.NODE_ENV === 'production') {
-      console.error('Exiting due to missing configuration in production mode.'.red.bold);
+      console.error('\nExiting due to missing configuration in production mode.'.red.bold);
       process.exit(1);
+    } else {
+      console.warn('\n⚠️  Warning: Missing variables might cause some features to fail in development.'.yellow);
     }
   }
 };
@@ -63,6 +78,12 @@ const allowedOrigins = [
   'https://shopsphere-marketplace.vercel.app',
   'https://shopsphere-v1.vercel.app'
 ];
+
+if (process.env.FRONTEND_URL) {
+  if (!allowedOrigins.includes(process.env.FRONTEND_URL)) {
+    allowedOrigins.push(process.env.FRONTEND_URL);
+  }
+}
 
 if (process.env.ALLOWED_ORIGINS) {
   process.env.ALLOWED_ORIGINS.split(',').forEach(origin => {

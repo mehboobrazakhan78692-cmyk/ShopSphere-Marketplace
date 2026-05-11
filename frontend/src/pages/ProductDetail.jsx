@@ -41,9 +41,12 @@ export default function ProductDetail() {
         const { data } = await axios.get(`/api/products/${id}`);
         if (data.data) {
           setProduct(data.data);
-          // Fetch related
-          const { data: related } = await axios.get(`/api/products?category=${data.data.category}&limit=4`);
-          if (related.data) setRelatedProducts(related.data.filter(p => p._id !== id));
+          // Now fetch related in background without blocking the UI if possible
+          axios.get(`/api/products?category=${data.data.category}&limit=4`)
+            .then(({ data: related }) => {
+              if (related.data) setRelatedProducts(related.data.filter(p => p._id !== id));
+            })
+            .catch(() => {}); // silently fail related
         } else throw new Error('fallback');
       } catch {
         const mock = MOCK_PRODUCTS.find(p => p._id === id);

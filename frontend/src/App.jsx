@@ -106,6 +106,7 @@ function App() {
                       <Route path="products" element={<AdminProducts />} />
                       <Route path="orders" element={<AdminOrders />} />
                       <Route path="users" element={<AdminUsers />} />
+                      <Route path="*" element={<NotFound />} />
                     </Route>
                   </Route>
 
@@ -117,12 +118,12 @@ function App() {
                       <Route path="orders" element={<VendorOrders />} />
                       <Route path="add-product" element={<AddProduct />} />
                       <Route path="edit-product/:id" element={<AddProduct />} />
+                      <Route path="*" element={<NotFound />} />
                     </Route>
                   </Route>
 
                   {/* ── Main Store Routes (with Header + Footer) ── */}
                   <Route element={<StoreLayout />}>
-                    {/* Public routes */}
                     <Route path="/"                   element={<Home />} />
                     <Route path="/login"              element={<Login />} />
                     <Route path="/register"           element={<Register />} />
@@ -134,7 +135,6 @@ function App() {
                     <Route path="/product/:id"        element={<ProductDetail />} />
                     <Route path="/category/:category" element={<CategoryPage />} />
 
-                    {/* Protected store routes */}
                     <Route element={<ProtectedRoute allowedRoles={[]} />}>
                       <Route path="/checkout"         element={<Checkout />} />
                       <Route path="/order-success"    element={<OrderSuccess />} />
@@ -144,9 +144,12 @@ function App() {
                       <Route path="/profile"          element={<Profile />} />
                     </Route>
 
-                    {/* 404 catch-all */}
+                    {/* 404 catch-all for store routes */}
                     <Route path="*" element={<NotFound />} />
                   </Route>
+
+                  {/* Final global 404 catch-all */}
+                  <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
             </div>

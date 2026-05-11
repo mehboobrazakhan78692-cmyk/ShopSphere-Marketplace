@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { FiUser, FiMail, FiPhone, FiEdit2, FiSave, FiX, FiPackage, FiHeart, FiShield, FiLogOut } from 'react-icons/fi';
+import { FiUser, FiMail, FiPhone, FiEdit2, FiSave, FiX, FiPackage, FiHeart, FiShield, FiLogOut, FiPlusSquare } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
 export default function Profile() {
-  const { user, logout } = useAuth();
+  const { user, logout, becomeVendor } = useAuth();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [vendorLoading, setVendorLoading] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', phone: '' });
 
   useEffect(() => {
@@ -43,13 +44,22 @@ export default function Profile() {
     }
   };
 
+  const handleBecomeVendor = async () => {
+    if (!window.confirm('Do you want to become a seller on ShopSphere?')) return;
+    setVendorLoading(true);
+    const res = await becomeVendor();
+    setVendorLoading(false);
+    if (res.success) toast.success('Congratulations! You are now a seller.');
+    else toast.error(res.message);
+  };
+
   const handleLogout = async () => {
     await logout();
     navigate('/');
   };
 
   const avatar = user.name ? user.name.charAt(0).toUpperCase() : 'U';
-  const roleColors = { admin: '#7c3aed', vendor: '#0284c7', user: '#059669' };
+  const roleColors = { admin: '#7c3aed', vendor: '#0284c7', customer: '#059669', user: '#059669' };
   const roleColor = roleColors[user.role] || roleColors.user;
 
   const QUICK_LINKS = [
@@ -172,6 +182,25 @@ export default function Profile() {
               </div>
             </Link>
           ))}
+
+          {/* Become a Vendor for Customers */}
+          {user.role === 'customer' && (
+            <div
+              className="section-card"
+              onClick={handleBecomeVendor}
+              style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer', border: '1px solid #f90', background: '#fff9f0', transition: 'all 0.2s' }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.1)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
+            >
+              <div style={{ width: 48, height: 48, borderRadius: '12px', background: '#f902', color: '#f90', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <FiPlusSquare size={22} />
+              </div>
+              <div>
+                <span style={{ fontWeight: 600, fontSize: '15px', color: '#1e293b', display: 'block' }}>Become a Seller</span>
+                <span style={{ fontSize: '12px', color: '#888' }}>Sell products on ShopSphere</span>
+              </div>
+            </div>
+          )}
 
           {/* Sign Out */}
           <div

@@ -7,11 +7,15 @@ const connectMongoDB = async () => {
   const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/ShopSphere';
   const isProduction = process.env.NODE_ENV === 'production';
 
+  const options = {
+    maxPoolSize: isProduction ? 10 : 5,
+    serverSelectionTimeoutMS: isProduction ? 5000 : 3000,
+    connectTimeoutMS: isProduction ? 10000 : 3000,
+    family: 4 // Use IPv4
+  };
+
   try {
-    const conn = await mongoose.connect(mongoUri, {
-      maxPoolSize: isProduction ? 10 : 5,
-      serverSelectionTimeoutMS: 5000, // Fail fast if Atlas is unreachable
-    });
+    const conn = await mongoose.connect(mongoUri, options);
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`.cyan.bold);
   } catch (error) {
     console.error(`❌ MongoDB Primary Connection Error: ${error.message}`.red.bold);
@@ -21,7 +25,9 @@ const connectMongoDB = async () => {
       console.log('⚠️ Attempting Local MongoDB fallback...'.yellow);
       try {
         const localUri = process.env.MONGO_URI_LOCAL || 'mongodb://127.0.0.1:27017/ShopSphere';
-        const conn = await mongoose.connect(localUri);
+        // Disconnect before attempting fallback to avoid hanging states
+        await mongoose.disconnect().catch(() => {});
+        const conn = await mongoose.connect(localUri, { ...options, serverSelectionTimeoutMS: 2000 });
         console.log(`✅ Fallback MongoDB Connected: ${conn.connection.host}`.yellow.bold);
       } catch (fallbackError) {
         console.error(`❌ Fallback MongoDB Error: ${fallbackError.message}`.red.bold);
@@ -37,26 +43,29 @@ const connectMongoDB = async () => {
 const isProduction = process.env.NODE_ENV === 'production';
 
 const sequelize = new Sequelize(
-  process.env.PG_DB || (isProduction ? null : 'shopsphere'),
-  process.env.PG_USER || (isProduction ? null : 'postgres'),
-  process.env.PG_PASSWORD || (isProduction ? null : 'postgres'),
+  process.env.PG_DB || 'shopsphere',
+  process.env.PG_USER || 'postgres',
+  process.env.PG_PASSWORD || 'postgres',
   {
-    host: process.env.PG_HOST || (isProduction ? null : 'localhost'),
+    host: process.env.PG_HOST || 'localhost',
     port: process.env.PG_PORT || 5432,
     dialect: 'postgres',
     logging: false,
     dialectOptions: isProduction ? {
       ssl: {
         require: true,
-        rejectUnauthorized: false // Common for managed DBs like RDS/Heroku, adjust as needed
+        rejectUnauthorized: false
       }
     } : {},
     pool: {
-      max: isProduction ? 20 : 10,
-      min: 0,
-      acquire: 30000,
+      max: isProduction ? 25 : 10,
+      min: 2,
+      acquire: 60000,
       idle: 10000,
     },
+    retry: {
+      max: 3
+    }
   }
 );
 

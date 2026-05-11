@@ -62,11 +62,15 @@ export default function ProductsPage() {
       });
 
       const { data } = await axios.get('/api/products', { params: cleanParams });
-      setProducts(data.data);
-      setTotal(data.total);
-      setTotalPages(data.totalPages);
+      if (data.success) {
+        setProducts(data.data || []);
+        setTotal(data.total || 0);
+        setTotalPages(data.totalPages || 1);
+      }
     } catch (error) {
       console.error('Error fetching products:', error);
+      // Use empty state on error to avoid infinite loading
+      setProducts([]);
     } finally {
       setLoading(false);
     }

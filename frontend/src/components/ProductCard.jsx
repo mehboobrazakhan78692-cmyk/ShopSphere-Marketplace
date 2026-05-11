@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { FiShoppingCart, FiHeart } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
@@ -10,6 +11,7 @@ export default function ProductCard({ product }) {
   const { addToCart } = useCart();
   const { toggleWishlist, isWishlisted } = useWishlist();
 
+  const [imgError, setImgError] = useState(false);
   const wishlisted = isWishlisted(product._id);
 
   const discountPct = product.originalPrice && product.originalPrice > product.price
@@ -64,7 +66,7 @@ export default function ProductCard({ product }) {
           overflow: 'hidden',
         }}
       >
-        {product.thumbnail || (product.images && product.images[0]) ? (
+        {(product.thumbnail || (product.images && product.images[0])) && !imgError ? (
           <img
             src={getOptimizedImage(product.thumbnail || product.images[0], 400)}
             alt={product.name}
@@ -77,12 +79,7 @@ export default function ProductCard({ product }) {
             }}
             onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
             onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-            onError={e => {
-              e.target.style.display = 'none';
-              e.target.parentElement.innerHTML = `<span style="font-size:48px">${
-                { electronics: '💻', fashion: '👗', home: '🏠', beauty: '💄' }[product.category] || '📦'
-              }</span>`;
-            }}
+            onError={() => setImgError(true)}
           />
         ) : (
           <div
@@ -90,12 +87,14 @@ export default function ProductCard({ product }) {
               width: '100%', height: '100%',
               display: 'flex', flexDirection: 'column',
               alignItems: 'center', justifyContent: 'center',
-              color: '#aaa', gap: '8px',
+              background: '#f1f3f5',
+              color: '#adb5bd', gap: '8px',
             }}
           >
-            <span style={{ fontSize: '48px' }}>
-              {{ electronics: '💻', fashion: '👗', home: '🏠', beauty: '💄' }[product.category] || '📦'}
+            <span style={{ fontSize: '56px', filter: 'grayscale(0.2)' }}>
+              {{ electronics: '💻', fashion: '👗', home: '🏠', beauty: '💄' }[product.category?.toLowerCase()] || '📦'}
             </span>
+            <span style={{ fontSize: '11px', fontWeight: 500, letterSpacing: '0.5px', textTransform: 'uppercase' }}>No Image</span>
           </div>
         )}
       </div>
