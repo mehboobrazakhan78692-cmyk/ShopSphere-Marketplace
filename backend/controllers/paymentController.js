@@ -45,8 +45,8 @@ const createCheckoutSession = asyncHandler(async (req, res) => {
     payment_method_types: ['card'],
     line_items: lineItems,
     mode: 'payment',
-    success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/order-success?id=${order._id}&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/checkout?orderId=${order._id}`,
+    success_url: `${(process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : (process.env.FRONTEND_URL || 'http://localhost:5173'))}/order-success?id=${order._id}&session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${(process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : (process.env.FRONTEND_URL || 'http://localhost:5173'))}/checkout?orderId=${order._id}`,
     metadata: { orderId: order._id.toString() },
   });
 

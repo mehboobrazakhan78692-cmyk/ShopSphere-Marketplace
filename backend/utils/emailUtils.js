@@ -140,7 +140,7 @@ const sendWelcomeEmail = async (user) => {
       </div>
 
       <div style="text-align: center; margin: 40px 0;">
-        <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}" 
+        <a href="${(process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : (process.env.FRONTEND_URL || 'http://localhost:5173'))}" 
            style="background: #0284c7; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 16px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
           Start Shopping Now
         </a>
@@ -232,7 +232,7 @@ const sendOrderStatusUpdateEmail = async (order, user) => {
       ` : ''}
 
       <div style="text-align: center; margin: 30px 0;">
-        <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/orders/${order._id}" 
+        <a href="${(process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : (process.env.FRONTEND_URL || 'http://localhost:5173'))}/orders/${order._id}" 
            style="background: #4CAF50; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">
           View Order Status
         </a>

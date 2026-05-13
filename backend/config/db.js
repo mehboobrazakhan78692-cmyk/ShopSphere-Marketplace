@@ -83,16 +83,17 @@ const connectPostgres = async () => {
       await sequelize.sync({ alter: true });
       console.log(`✅ PostgreSQL Models Synced (alter: true)`.green.bold);
     } else {
-      // In production, sync is safer without 'alter' if migrations are used, 
-      // but here we keep it simple while avoiding dangerous changes.
+      // In production, sync is safer without 'alter'
       await sequelize.sync(); 
       console.log(`✅ PostgreSQL Models Synced (production)`.green.bold);
     }
   } catch (error) {
-    console.warn(`⚠️  PostgreSQL Error: ${error.message}`.yellow);
+    console.error(`❌ PostgreSQL Connection Error: ${error.message}`.red.bold);
     if (process.env.NODE_ENV === 'production') {
-      console.error('❌ CRITICAL: PostgreSQL is required in production!'.red.bold);
+      console.error('CRITICAL: PostgreSQL is mandatory in production!'.red.bold);
       process.exit(1);
+    } else {
+      console.warn('⚠️  Continuing without PostgreSQL in development...'.yellow);
     }
   }
 };

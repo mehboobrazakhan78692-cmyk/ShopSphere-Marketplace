@@ -40,6 +40,8 @@ const checkEnv = () => {
     } else {
       console.warn('\n⚠️  Warning: Missing variables might cause some features to fail in development.'.yellow);
     }
+  } else {
+    console.log('✅ Environment validation passed'.green);
   }
 };
 
@@ -79,15 +81,18 @@ const allowedOrigins = [
   'https://shopsphere-v1.vercel.app'
 ];
 
+// Add frontend URL from env if available
 if (process.env.FRONTEND_URL) {
-  if (!allowedOrigins.includes(process.env.FRONTEND_URL)) {
-    allowedOrigins.push(process.env.FRONTEND_URL);
+  const url = process.env.FRONTEND_URL.replace(/\/$/, ''); // Remove trailing slash
+  if (!allowedOrigins.includes(url)) {
+    allowedOrigins.push(url);
   }
 }
 
+// Add manually specified origins
 if (process.env.ALLOWED_ORIGINS) {
   process.env.ALLOWED_ORIGINS.split(',').forEach(origin => {
-    const trimmed = origin.trim();
+    const trimmed = origin.trim().replace(/\/$/, '');
     if (trimmed && !allowedOrigins.includes(trimmed)) {
       allowedOrigins.push(trimmed);
     }
@@ -99,11 +104,11 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
     
-    // Check if origin is allowed or matches a .vercel.app or .onrender.com subdomain
+    // Check if origin is allowed or matches a trusted subdomain
     const isAllowed = allowedOrigins.includes(origin) || 
                      origin.endsWith('.vercel.app') || 
                      origin.endsWith('.onrender.com');
-                     
+                      
     if (isAllowed) {
       callback(null, true);
     } else {
