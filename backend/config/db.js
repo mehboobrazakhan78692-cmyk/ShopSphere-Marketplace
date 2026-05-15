@@ -51,7 +51,7 @@ const sequelize = new Sequelize(
     port: process.env.PG_PORT || 5432,
     dialect: 'postgres',
     logging: false,
-    dialectOptions: isProduction ? {
+    dialectOptions: isProduction && process.env.PG_HOST && process.env.PG_HOST.includes('.') && !process.env.PG_HOST.includes('127.0.0.1') ? {
       ssl: {
         require: true,
         rejectUnauthorized: false
