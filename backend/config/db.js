@@ -9,8 +9,9 @@ const connectMongoDB = async () => {
 
   const options = {
     maxPoolSize: isProduction ? 10 : 5,
-    serverSelectionTimeoutMS: isProduction ? 5000 : 3000,
-    connectTimeoutMS: isProduction ? 10000 : 3000,
+    serverSelectionTimeoutMS: isProduction ? 15000 : 5000, // Extended for cold starts
+    connectTimeoutMS: isProduction ? 20000 : 5000,         // Extended for Atlas on Render
+    socketTimeoutMS: isProduction ? 45000 : 10000,
     family: 4 // Use IPv4
   };
 
@@ -18,23 +19,23 @@ const connectMongoDB = async () => {
     const conn = await mongoose.connect(mongoUri, options);
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`.cyan.bold);
   } catch (error) {
-    console.error(`❌ MongoDB Primary Connection Error: ${error.message}`.red.bold);
+    console.error(`❌ MongoDB Connection Error: ${error.message}`.red.bold);
     
-    // If Atlas fails and we have a local fallback URI, or if we are not in strict production
-    if (!isProduction || process.env.ALLOW_LOCAL_FALLBACK === 'true') {
-      console.log('⚠️ Attempting Local MongoDB fallback...'.yellow);
-      try {
-        const localUri = process.env.MONGO_URI_LOCAL || 'mongodb://127.0.0.1:27017/ShopSphere';
-        // Disconnect before attempting fallback to avoid hanging states
-        await mongoose.disconnect().catch(() => {});
-        const conn = await mongoose.connect(localUri, { ...options, serverSelectionTimeoutMS: 2000 });
-        console.log(`✅ Fallback MongoDB Connected: ${conn.connection.host}`.yellow.bold);
-      } catch (fallbackError) {
-        console.error(`❌ Fallback MongoDB Error: ${fallbackError.message}`.red.bold);
-        if (isProduction) process.exit(1);
-      }
-    } else {
-      process.exit(1);
+    // In production, throw so the caller (startServer) can handle it
+    if (isProduction) {
+      throw error;
+    }
+    
+    // In development only, attempt local fallback
+    console.log('⚠️ Attempting Local MongoDB fallback...'.yellow);
+    try {
+      const localUri = 'mongodb://127.0.0.1:27017/ShopSphere';
+      await mongoose.disconnect().catch(() => {});
+      const conn = await mongoose.connect(localUri, { ...options, serverSelectionTimeoutMS: 2000 });
+      console.log(`✅ Fallback MongoDB Connected: ${conn.connection.host}`.yellow.bold);
+    } catch (fallbackError) {
+      console.error(`❌ Fallback MongoDB Error: ${fallbackError.message}`.red.bold);
+      throw fallbackError;
     }
   }
 };
@@ -83,13 +84,13 @@ const initSequelize = (dbUrlOrConfig) => {
     logging: false,
     dialectOptions: getDialectOptions(host),
     pool: {
-      max: isProduction ? 25 : 10,
-      min: 2,
-      acquire: 60000,
-      idle: 10000,
+      max: isProduction ? 10 : 5,
+      min: 0,
+      acquire: 15000,  // 15s max wait for connection — prevents long hangs
+      idle: 5000,
     },
     retry: {
-      max: 3
+      max: 1  // Only retry once — fail fast to not block server startup
     }
   };
 
@@ -149,19 +150,16 @@ const connectPostgres = async () => {
                       error.message.includes('no pg_hba.conf entry') ||
                       error.message.includes('server does not support SSL');
 
-    if (isSSLError && isProduction) {
+    if (isSSLError) {
       console.error('⚠️  SSL Configuration Mismatch detected!'.yellow.bold);
       console.error('Please verify if you are using Internal vs External Render URL.'.yellow);
+      console.error('Tip: Use INTERNAL_DATABASE_URL (dpg-xxx) for no-SSL, or set ssl.rejectUnauthorized=false'.yellow);
     }
 
-    if (isProduction) {
-      // In production, we still exit if we can't connect at all, 
-      // but we've provided better diagnostics above.
-      console.error('CRITICAL: PostgreSQL is mandatory in production! Exiting...'.red.bold);
-      process.exit(1);
-    } else {
-      console.warn('⚠️  Continuing without PostgreSQL in development...'.yellow);
-    }
+    // NEVER exit in production due to PG failure
+    // PostgreSQL is used for analytics/logs only — MongoDB handles products/users
+    console.warn('⚠️  Continuing without PostgreSQL — analytics features may be limited.'.yellow.bold);
+    console.warn('   MongoDB (products/users) remains fully operational.'.yellow);
   }
 };
 

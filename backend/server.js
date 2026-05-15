@@ -6,42 +6,44 @@ const colors = require('colors');
 
 // ─── Environment Validation ───────────────────────────────────────────────────
 const checkEnv = () => {
-  const required = [
-    'NODE_ENV',
+  // Core required for basic operation
+  const coreRequired = [
     'MONGO_URI',
     'JWT_SECRET',
+  ];
+
+  // Optional variables — warn but never crash
+  const optional = [
     'JWT_REFRESH_SECRET',
     'CLOUDINARY_CLOUD_NAME',
     'CLOUDINARY_API_KEY',
-    'CLOUDINARY_API_SECRET'
+    'CLOUDINARY_API_SECRET',
+    'STRIPE_SECRET_KEY',
+    'FRONTEND_URL',
   ];
 
-  // Additional required variables for production
-  if (process.env.NODE_ENV === 'production') {
-    required.push(
-      'PG_HOST',
-      'PG_USER',
-      'PG_PASSWORD',
-      'PG_DB',
-      'STRIPE_SECRET_KEY',
-      'FRONTEND_URL'
-    );
+  const missingCore = coreRequired.filter(key => !process.env[key]);
+  const missingOptional = optional.filter(key => !process.env[key]);
+
+  if (missingCore.length > 0) {
+    console.error('\n❌ CRITICAL: Missing CORE environment variables:'.red.bold);
+    missingCore.forEach(key => console.error(`   - ${key}`.red));
+    // Only exit for truly core variables (MongoDB + JWT)
+    if (process.env.NODE_ENV === 'production') {
+      console.error('\n⚠️  Core variables missing — server may not function correctly.'.yellow);
+      // Do NOT exit — let it start and handle errors gracefully
+    }
   }
 
-  const missing = required.filter(key => !process.env[key]);
+  if (missingOptional.length > 0) {
+    console.warn('\n⚠️  Optional environment variables not set (features may be limited):'.yellow);
+    missingOptional.forEach(key => console.warn(`   - ${key}`.yellow));
+  }
 
-  if (missing.length > 0) {
-    console.error('\n❌ CRITICAL: Missing required environment variables:'.red.bold);
-    missing.forEach(key => console.error(`   - ${key}`.red));
-    
-    if (process.env.NODE_ENV === 'production') {
-      console.error('\nExiting due to missing configuration in production mode.'.red.bold);
-      process.exit(1);
-    } else {
-      console.warn('\n⚠️  Warning: Missing variables might cause some features to fail in development.'.yellow);
-    }
-  } else {
-    console.log('✅ Environment validation passed'.green);
+  if (missingCore.length === 0 && missingOptional.length === 0) {
+    console.log('✅ All environment variables configured'.green);
+  } else if (missingCore.length === 0) {
+    console.log('✅ Core environment validation passed (some optional vars missing)'.green);
   }
 };
 
@@ -175,12 +177,28 @@ if (process.env.NODE_ENV === 'development') {
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
+  const mongoose = require('mongoose');
+  const mongoState = mongoose.connection.readyState;
+  const mongoStatus = ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoState] || 'unknown';
+
   res.json({
     success: true,
+    status: 'ok',
     message: '🛒 ShopSphere API is running',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
+    uptime: Math.floor(process.uptime()) + 's',
+    database: {
+      mongodb: mongoStatus,
+      mongoConnected: mongoState === 1,
+    },
+    config: {
+      hasMongo: !!process.env.MONGO_URI,
+      hasJWT: !!process.env.JWT_SECRET,
+      hasStripe: !!process.env.STRIPE_SECRET_KEY,
+      hasFrontendUrl: !!process.env.FRONTEND_URL,
+    },
   });
 });
 
@@ -207,19 +225,38 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
-  await connectMongoDB();
-  await connectPostgres();
+  try {
+    // MongoDB is mandatory — if it fails, we cannot serve products/users
+    await connectMongoDB();
+    console.log('✅ MongoDB initialization complete'.green);
+  } catch (mongoErr) {
+    console.error('❌ MongoDB initialization failed, cannot start server.'.red.bold);
+    process.exit(1);
+  }
 
+  // PostgreSQL is optional — analytics only. Never block startup.
+  const pgTimeout = new Promise((resolve) => setTimeout(() => {
+    console.warn('⚠️  PostgreSQL connection timed out — skipping PG initialization'.yellow);
+    resolve();
+  }, 12000)); // 12 second max wait
+
+  await Promise.race([connectPostgres(), pgTimeout]);
+
+  // Start HTTP server regardless of PG state
   app.listen(PORT, () => {
     console.log('\n╔══════════════════════════════════════════╗'.rainbow);
     console.log('║   🛒  ShopSphere Backend Started!        ║'.rainbow);
     console.log('╚══════════════════════════════════════════╝\n'.rainbow);
-    console.log(`🚀 Server running on: http://localhost:${PORT}`.green.bold);
-    console.log(`🔗 Health:   http://localhost:${PORT}/api/health`.cyan);
-    console.log(`📦 Products: http://localhost:${PORT}/api/products`.cyan);
-    console.log(`🔐 Auth:     http://localhost:${PORT}/api/auth`.cyan);
-    console.log(`🛍️  Orders:   http://localhost:${PORT}/api/orders\n`.cyan);
+    console.log(`🚀 Server running on port: ${PORT}`.green.bold);
+    console.log(`🔗 Health:   /api/health`.cyan);
+    console.log(`📦 Products: /api/products`.cyan);
+    console.log(`🔐 Auth:     /api/auth`.cyan);
+    console.log(`🛍️  Orders:   /api/orders\n`.cyan);
   });
 };
 
-startServer();
+startServer().catch((err) => {
+  console.error('❌ Fatal server startup error:', err.message);
+  process.exit(1);
+});
+
