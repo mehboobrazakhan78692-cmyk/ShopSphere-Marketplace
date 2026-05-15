@@ -49,12 +49,16 @@ const getDialectOptions = (host) => {
   
   // Render internal database hostnames start with 'dpg-' and have no dots
   // dpg-xxx-a (internal) vs dpg-xxx-a.oregon-postgres.render.com (external)
-  if (host.startsWith('dpg-') && !host.includes('.')) {
+  const isInternal = host.startsWith('dpg-') && !host.includes('.');
+  
+  if (isInternal) {
+    console.log(`📡 Detected Render Internal PostgreSQL host: ${host} (SSL Disabled)`.cyan);
     return {};
   }
   
   // External or standard FQDNs usually require SSL on Render/Supabase/etc.
   if (host.includes('.') || host.includes('render.com')) {
+    console.log(`🌐 Detected External PostgreSQL host: ${host} (SSL Enabled)`.cyan);
     return {
       ssl: {
         require: true,
@@ -68,14 +72,13 @@ const getDialectOptions = (host) => {
 
 let sequelize;
 
-if (process.env.DATABASE_URL) {
-  // Use connection string if available
-  const dbUrl = process.env.DATABASE_URL;
-  // Extract host for SSL logic
-  const hostMatch = dbUrl.match(/@([^/:]+)/);
-  const host = hostMatch ? hostMatch[1] : '';
-  
-  sequelize = new Sequelize(dbUrl, {
+const initSequelize = (dbUrlOrConfig) => {
+  const isString = typeof dbUrlOrConfig === 'string';
+  const host = isString 
+    ? (dbUrlOrConfig.match(/@([^/:]+)/)?.[1] || '')
+    : (dbUrlOrConfig.host || '');
+
+  const config = {
     dialect: 'postgres',
     logging: false,
     dialectOptions: getDialectOptions(host),
@@ -88,34 +91,37 @@ if (process.env.DATABASE_URL) {
     retry: {
       max: 3
     }
-  });
+  };
+
+  if (isString) {
+    return new Sequelize(dbUrlOrConfig, config);
+  } else {
+    return new Sequelize(
+      dbUrlOrConfig.database,
+      dbUrlOrConfig.user,
+      dbUrlOrConfig.password,
+      { ...config, host: dbUrlOrConfig.host, port: dbUrlOrConfig.port }
+    );
+  }
+};
+
+// Use INTERNAL_DATABASE_URL if available (Render priority), else DATABASE_URL, else components
+const primaryUrl = process.env.INTERNAL_DATABASE_URL || process.env.DATABASE_URL;
+
+if (primaryUrl) {
+  sequelize = initSequelize(primaryUrl);
 } else {
-  // Fallback to individual variables
   const host = process.env.PG_HOST || 'localhost';
   const portInput = process.env.PG_PORT;
   const port = (portInput && !isNaN(parseInt(portInput))) ? parseInt(portInput) : 5432;
 
-  sequelize = new Sequelize(
-    process.env.PG_DB || 'shopsphere',
-    process.env.PG_USER || 'postgres',
-    process.env.PG_PASSWORD || 'postgres',
-    {
-      host: host,
-      port: port,
-      dialect: 'postgres',
-      logging: false,
-      dialectOptions: getDialectOptions(host),
-      pool: {
-        max: isProduction ? 25 : 10,
-        min: 2,
-        acquire: 60000,
-        idle: 10000,
-      },
-      retry: {
-        max: 3
-      }
-    }
-  );
+  sequelize = initSequelize({
+    database: process.env.PG_DB || 'shopsphere',
+    user: process.env.PG_USER || 'postgres',
+    password: process.env.PG_PASSWORD || 'postgres',
+    host: host,
+    port: port
+  });
 }
 
 const connectPostgres = async () => {
@@ -132,14 +138,26 @@ const connectPostgres = async () => {
       await sequelize.sync({ alter: true });
       console.log(`✅ PostgreSQL Models Synced (alter: true)`.green.bold);
     } else {
-      // In production, sync is safer without 'alter'
       await sequelize.sync(); 
       console.log(`✅ PostgreSQL Models Synced (production)`.green.bold);
     }
   } catch (error) {
     console.error(`❌ PostgreSQL Connection Error: ${error.message}`.red.bold);
-    if (process.env.NODE_ENV === 'production') {
-      console.error('CRITICAL: PostgreSQL is mandatory in production!'.red.bold);
+    
+    // Special handling for SSL mismatches to prevent crash if possible, or at least log clearly
+    const isSSLError = error.message.includes('SSL') || 
+                      error.message.includes('no pg_hba.conf entry') ||
+                      error.message.includes('server does not support SSL');
+
+    if (isSSLError && isProduction) {
+      console.error('⚠️  SSL Configuration Mismatch detected!'.yellow.bold);
+      console.error('Please verify if you are using Internal vs External Render URL.'.yellow);
+    }
+
+    if (isProduction) {
+      // In production, we still exit if we can't connect at all, 
+      // but we've provided better diagnostics above.
+      console.error('CRITICAL: PostgreSQL is mandatory in production! Exiting...'.red.bold);
       process.exit(1);
     } else {
       console.warn('⚠️  Continuing without PostgreSQL in development...'.yellow);
