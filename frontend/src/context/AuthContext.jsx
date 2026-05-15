@@ -4,6 +4,7 @@ import axios from 'axios';
 const AuthContext = createContext();
 
 // Set up global axios defaults once
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || '';
 axios.defaults.withCredentials = true;
 axios.defaults.headers.common['X-ShopSphere-CSRF'] = 'shopsphere_v1';
 
