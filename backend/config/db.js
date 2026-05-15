@@ -42,21 +42,43 @@ const connectMongoDB = async () => {
 // ─── PostgreSQL Connection ────────────────────────────────────────────────────
 const isProduction = process.env.NODE_ENV === 'production';
 
-const sequelize = new Sequelize(
-  process.env.PG_DB || 'shopsphere',
-  process.env.PG_USER || 'postgres',
-  process.env.PG_PASSWORD || 'postgres',
-  {
-    host: process.env.PG_HOST || 'localhost',
-    port: process.env.PG_PORT || 5432,
-    dialect: 'postgres',
-    logging: false,
-    dialectOptions: isProduction && process.env.PG_HOST && process.env.PG_HOST.includes('.') && !process.env.PG_HOST.includes('127.0.0.1') ? {
+// Helper to determine SSL settings based on hostname
+const getDialectOptions = (host) => {
+  if (!isProduction) return {};
+  if (!host) return {};
+  
+  // Render internal database hostnames start with 'dpg-' and have no dots
+  // dpg-xxx-a (internal) vs dpg-xxx-a.oregon-postgres.render.com (external)
+  if (host.startsWith('dpg-') && !host.includes('.')) {
+    return {};
+  }
+  
+  // External or standard FQDNs usually require SSL on Render/Supabase/etc.
+  if (host.includes('.') || host.includes('render.com')) {
+    return {
       ssl: {
         require: true,
         rejectUnauthorized: false
       }
-    } : {},
+    };
+  }
+  
+  return {};
+};
+
+let sequelize;
+
+if (process.env.DATABASE_URL) {
+  // Use connection string if available
+  const dbUrl = process.env.DATABASE_URL;
+  // Extract host for SSL logic
+  const hostMatch = dbUrl.match(/@([^/:]+)/);
+  const host = hostMatch ? hostMatch[1] : '';
+  
+  sequelize = new Sequelize(dbUrl, {
+    dialect: 'postgres',
+    logging: false,
+    dialectOptions: getDialectOptions(host),
     pool: {
       max: isProduction ? 25 : 10,
       min: 2,
@@ -66,8 +88,35 @@ const sequelize = new Sequelize(
     retry: {
       max: 3
     }
-  }
-);
+  });
+} else {
+  // Fallback to individual variables
+  const host = process.env.PG_HOST || 'localhost';
+  const portInput = process.env.PG_PORT;
+  const port = (portInput && !isNaN(parseInt(portInput))) ? parseInt(portInput) : 5432;
+
+  sequelize = new Sequelize(
+    process.env.PG_DB || 'shopsphere',
+    process.env.PG_USER || 'postgres',
+    process.env.PG_PASSWORD || 'postgres',
+    {
+      host: host,
+      port: port,
+      dialect: 'postgres',
+      logging: false,
+      dialectOptions: getDialectOptions(host),
+      pool: {
+        max: isProduction ? 25 : 10,
+        min: 2,
+        acquire: 60000,
+        idle: 10000,
+      },
+      retry: {
+        max: 3
+      }
+    }
+  );
+}
 
 const connectPostgres = async () => {
   try {
